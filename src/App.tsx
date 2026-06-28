@@ -429,8 +429,12 @@ export default function App() {
                   <strong>Acerca de</strong>
                 </header>
                 <p>
-                  Se agradece cualquier ayuda a mi PayPal para seguir con el proyecto.
-                  Cualquier cosa es bien recibida.
+                  If you found this helpful and would like to support its development, you can buy
+                  me a coffee. Thank you so much for your support!
+                </p>
+                <p>
+                  Si esto te resulto util y quieres apoyar su desarrollo, puedes invitarme un cafe.
+                  Muchas gracias por tu apoyo!
                 </p>
                 <a href="https://paypal.me/waltDx" target="_blank" rel="noreferrer">
                   https://paypal.me/waltDx
