@@ -23,9 +23,17 @@ pnpm build
 
 ## GitHub Pages
 
-El proyecto esta preparado para publicarse con GitHub Actions.
+El proyecto esta preparado para publicarse de dos formas.
+
+Opcion recomendada si quieres que GitHub lea una carpeta estatica:
 
 1. Sube el repo a GitHub.
-2. En `Settings > Pages`, selecciona `GitHub Actions` como source.
-3. Haz push a `main`.
-4. El workflow `Deploy GitHub Pages` compila la app y publica `dist`.
+2. En `Settings > Pages`, selecciona `Deploy from a branch`.
+3. Usa branch `main` y carpeta `/docs`.
+4. La carpeta `docs/` contiene el build listo para publicar.
+
+Opcion con GitHub Actions:
+
+1. En `Settings > Pages`, selecciona `GitHub Actions` como source.
+2. Haz push a `main`.
+3. El workflow `Deploy GitHub Pages` compila la app y publica `dist`.
