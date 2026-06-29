@@ -1081,6 +1081,16 @@ h3 {
   mix-blend-mode: screen;
 }
 
+.viewport-brush-cursor.is-sticker {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border-color: rgba(245, 158, 11, 0.92) !important;
+  border-radius: 4px;
+  opacity: 0.62;
+  mix-blend-mode: normal;
+}
+
 .viewport-label {
   position: absolute;
   top: 10px;
@@ -3571,6 +3581,20 @@ h3 {
   transform: rotate(-22deg);
 }
 
+.brush-preview-orb img {
+  max-width: calc(100% - 14px);
+  max-height: calc(100% - 14px);
+  object-fit: contain;
+  opacity: 0.82;
+}
+
+.brush-asset-preview.is-sticker .paint-clear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .brush-asset-preview strong {
   overflow: hidden;
   color: var(--text-muted);
@@ -3941,6 +3965,10 @@ h3 {
     overflow: visible;
   }
 
+  .main-editor.has-edit-uv-panel .uv-layout-workspace {
+    grid-template-rows: minmax(590px, auto) 6px minmax(300px, auto);
+  }
+
   .editor-top-area {
     min-width: 0;
     overflow: hidden;
@@ -3948,11 +3976,48 @@ h3 {
 
   .editor-top-area.is-edit-split {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(300px, 52vh) minmax(260px, 42vh);
+    overflow: visible;
   }
 
-  .edit-uv-panel,
+  .editor-top-area.is-edit-split.is-uv-minimized {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(330px, 54vh) 34px;
+  }
+
   .edit-uv-panel-resize-handle {
     display: none;
+  }
+
+  .edit-uv-panel {
+    display: grid;
+    min-width: 0;
+    min-height: 260px;
+    max-height: 46vh;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .edit-uv-panel-header,
+  .edit-uv-toolbar,
+  .edit-uv-context-row,
+  .edit-uv-panel-footer {
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .edit-uv-toolbar,
+  .edit-uv-panel-footer {
+    flex-wrap: nowrap;
+  }
+
+  .edit-uv-context-row {
+    grid-template-columns: max-content max-content max-content;
+  }
+
+  .edit-uv-canvas {
+    min-height: 180px;
   }
 
   .main-editor .model-viewer {
@@ -4042,6 +4107,19 @@ h3 {
     width: 100%;
     overflow-x: auto;
     padding-bottom: 2px;
+    overscroll-behavior-x: contain;
+  }
+
+  .uv-channel-tabs button {
+    flex: 0 0 auto;
+    grid-template-columns: max-content auto;
+    min-width: max-content;
+    white-space: nowrap;
+  }
+
+  .uv-channel-tabs strong,
+  .uv-channel-tabs span {
+    white-space: nowrap;
   }
 
   .uv-layout-tools {
@@ -4112,10 +4190,34 @@ h3 {
     padding: 7px 8px;
   }
 
-  .projection-ripper-body {
+  .projection-ripper-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(260px, 42vh) minmax(320px, auto) auto;
+    grid-auto-rows: auto;
+    gap: 8px;
+    padding: 8px;
     overflow: visible;
+  }
+
+  .projection-atlas-panel,
+  .projection-stage-panel,
+  .projection-settings-panel {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .projection-atlas-panel,
+  .projection-stage-panel {
+    grid-template-rows: 32px auto;
+  }
+
+  .projection-atlas-surface {
+    align-self: start;
+    width: min(92vw, 360px);
+    margin: 8px auto;
+  }
+
+  .projection-stage {
+    min-height: 320px;
   }
 
   .projection-settings-panel {
@@ -4142,9 +4244,29 @@ h3 {
     grid-template-rows: minmax(330px, 54vh) 6px minmax(280px, auto);
   }
 
+  .main-editor.has-edit-uv-panel .uv-layout-workspace {
+    grid-template-rows: minmax(570px, auto) 6px minmax(280px, auto);
+  }
+
   .uv-layout-tools button {
     min-height: 28px;
     padding-inline: 7px;
+    font-size: 0.68rem;
+  }
+
+  .uv-channel-tabs {
+    gap: 1px;
+  }
+
+  .uv-channel-tabs button {
+    gap: 4px;
+    min-height: 24px;
+    padding-inline: 6px;
+    font-size: 0.68rem;
+  }
+
+  .uv-channel-tabs strong {
+    font-size: 0.68rem;
   }
 
   .prepared-image-picker span,

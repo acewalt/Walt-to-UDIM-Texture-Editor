@@ -384,13 +384,29 @@ export default function App() {
                   </span>
                   <span className="menu-item-meta">FBX / OBJ</span>
                 </button>
-                <button type="button" role="menuitem" disabled={!canExport} onClick={handleExport}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!canExport}
+                  onClick={() => {
+                    setIsFileMenuOpen(false);
+                    handleExport();
+                  }}
+                >
                   <span className="menu-item-main">
                     <Download aria-hidden="true" size={15} />
                     Export Renamed Textures
                   </span>
                 </button>
-                <button type="button" role="menuitem" disabled={!isModelLoaded} onClick={handleModelExport}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!isModelLoaded}
+                  onClick={() => {
+                    setIsFileMenuOpen(false);
+                    handleModelExport();
+                  }}
+                >
                   <span className="menu-item-main">
                     <FileBox aria-hidden="true" size={15} />
                     Export Model OBJ

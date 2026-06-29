@@ -24,6 +24,7 @@ import {
   CircleDashed,
   FlipVertical,
   Grid3X3,
+  ImagePlus,
   Lasso,
   MousePointer2,
   Paintbrush,
@@ -39,6 +40,7 @@ import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { ModelOutlinerNode, PaintExportLayer, TextureAsset, TextureChannel, UvEditCommand, UvSegment } from "../types/texture";
 import { canPreviewInBrowser, getTileForChannel } from "../utils/textureLoader";
 
@@ -116,6 +118,7 @@ const UV_HISTORY_LIMIT = 30;
 const UDIM_ATLAS_COLUMNS = 10;
 const UDIM_ATLAS_TILE_SIZE = 512;
 const PAINT_HISTORY_LIMIT = 14;
+const PAINT_UV_BLEED_PX = 6;
 const COLOR_PREVIEW_CHANNELS: TextureChannel[] = ["BaseColor", "Custom"];
 const EMPTY_HIDDEN_MODEL_NODE_IDS = new Set<string>();
 const BRUSH_PRESETS = [
@@ -127,6 +130,7 @@ const BRUSH_PRESETS = [
   "Fill",
   "Mask",
   "Clone",
+  "Sticker",
 ] as const;
 
 interface PaintLayer {
@@ -765,6 +769,7 @@ function getBarycentric2D(
   bY: number,
   cX: number,
   cY: number,
+  epsilon = -0.01,
 ): THREE.Vector3 | null {
   const denominator = (bY - cY) * (aX - cX) + (cX - bX) * (aY - cY);
   if (Math.abs(denominator) < 0.000001) {
@@ -774,7 +779,6 @@ function getBarycentric2D(
   const weightA = ((bY - cY) * (pointX - cX) + (cX - bX) * (pointY - cY)) / denominator;
   const weightB = ((cY - aY) * (pointX - cX) + (aX - cX) * (pointY - cY)) / denominator;
   const weightC = 1 - weightA - weightB;
-  const epsilon = -0.01;
   if (weightA < epsilon || weightB < epsilon || weightC < epsilon) {
     return null;
   }
@@ -1513,10 +1517,11 @@ function ensureEditableUvGeometry(mesh: THREE.Mesh) {
 }
 
 function prepareModelCloneForExport(object: THREE.Object3D) {
+  object.updateMatrixWorld(true);
   const removableObjects: THREE.Object3D[] = [];
 
   object.traverse((child) => {
-    if (child.name.startsWith("__")) {
+    if (child.name.startsWith("__") || child instanceof THREE.Line || child instanceof THREE.LineSegments) {
       removableObjects.push(child);
     }
   });
@@ -1530,6 +1535,15 @@ function prepareModelCloneForExport(object: THREE.Object3D) {
       return;
     }
 
+    child.updateMatrixWorld(true);
+    try {
+      child.geometry = mergeVertices(child.geometry.clone(), 0.00001);
+    } catch {
+      child.geometry = child.geometry.clone();
+    }
+    if (!child.geometry.attributes.normal) {
+      child.geometry.computeVertexNormals();
+    }
     child.geometry.computeBoundingBox();
     child.geometry.computeBoundingSphere();
   });
@@ -3112,6 +3126,8 @@ export function ModelViewer({
   const [primaryColor, setPrimaryColor] = useState("#ff3030");
   const [secondaryColor, setSecondaryColor] = useState("#000000");
   const [blendMode, setBlendMode] = useState("Mix");
+  const [stickerUrl, setStickerUrl] = useState<string | null>(null);
+  const [stickerImage, setStickerImage] = useState<HTMLImageElement | null>(null);
   const [symmetryEnabled, setSymmetryEnabled] = useState(false);
   const [pressureEnabled, setPressureEnabled] = useState(true);
   const [brushAdjustMode, setBrushAdjustMode] = useState<BrushAdjustMode>(null);
@@ -3127,6 +3143,7 @@ export function ModelViewer({
   const [modelError, setModelError] = useState<string | null>(null);
   const [brushCursor, setBrushCursor] = useState({ x: 0, y: 0, visible: false });
   const localFbxInputRef = useRef<HTMLInputElement | null>(null);
+  const stickerInputRef = useRef<HTMLInputElement | null>(null);
   const canvasShellRef = useRef<HTMLDivElement | null>(null);
   const paintLayerRef = useRef<PaintLayer | null>(null);
   const paintRaycasterRef = useRef(new THREE.Raycaster());
@@ -3137,6 +3154,7 @@ export function ModelViewer({
   const uvUndoStackRef = useRef<UvHistoryEntry[]>([]);
   const uvRedoStackRef = useRef<UvHistoryEntry[]>([]);
   const lastUvHistoryGroupRef = useRef<number | undefined>(undefined);
+  const lastSelectAllKeyRef = useRef(0);
   const lastHandledUvEditCommandIdRef = useRef<number | null>(null);
   const currentModelObjectRef = useRef<THREE.Object3D | null>(null);
   const handleModelObjectChange = useCallback((object: THREE.Object3D | null) => {
@@ -3172,6 +3190,24 @@ export function ModelViewer({
     setSelectedUvSegments(invertedItems.flatMap((item) => item.uvSegments));
   }, [editSelectionMode, selectedUvEditTargets]);
 
+  const clearEditSelection = useCallback(() => {
+    setSelectedFaceMarkers([]);
+    setSelectedUvEditTargets([]);
+    setSelectedUvSegments([]);
+  }, []);
+
+  const selectAllEditSelection = useCallback(() => {
+    const root = currentModelObjectRef.current;
+    if (!root) {
+      return;
+    }
+
+    const allItems = getAllEditSelectionItems(root, editSelectionMode);
+    setSelectedFaceMarkers(allItems.flatMap((item) => item.markers));
+    setSelectedUvEditTargets(allItems.map((item) => item.editTarget));
+    setSelectedUvSegments(allItems.flatMap((item) => item.uvSegments));
+  }, [editSelectionMode]);
+
   useEffect(() => {
     onSelectedUvSegmentsChange?.(selectedUvSegments);
   }, [onSelectedUvSegmentsChange, selectedUvSegments]);
@@ -3190,6 +3226,7 @@ export function ModelViewer({
     }
 
     const exporter = new OBJExporter();
+    currentModelObjectRef.current.updateMatrixWorld(true);
     const exportObject = prepareModelCloneForExport(currentModelObjectRef.current.clone(true));
     const output = exporter.parse(exportObject);
     const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
@@ -3372,6 +3409,31 @@ export function ModelViewer({
       importModelFile(file);
       event.target.value = "";
     }
+  }
+
+  function handleStickerImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const nextUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      setStickerUrl((currentUrl) => {
+        if (currentUrl) {
+          URL.revokeObjectURL(currentUrl);
+        }
+        return nextUrl;
+      });
+      setStickerImage(image);
+      setActiveBrush("Sticker");
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(nextUrl);
+    };
+    image.src = nextUrl;
+    event.target.value = "";
   }
 
   function hasModelFileDrag(event: DragEvent<HTMLDivElement>): boolean {
@@ -3585,6 +3647,10 @@ export function ModelViewer({
       const paintRgb = hexToRgb(primaryColor);
       const isEraser = activeBrush === "Erase" || blendMode === "Erase Alpha";
       const isHardBrush = activeBrush === "Paint Hard" || activeBrush === "Pixel Art" || activeBrush === "Erase";
+      const isStickerBrush = activeBrush === "Sticker";
+      if (isStickerBrush && !stickerImage) {
+        return;
+      }
       const raycaster = paintRaycasterRef.current;
       const centerHit = getPaintUvHitAtClientPoint(
         event,
@@ -3600,11 +3666,11 @@ export function ModelViewer({
       const previousHit = lastPaintHitRef.current;
       const screenDistance = previousHit ? Math.hypot(centerHit.clientX - previousHit.clientX, centerHit.clientY - previousHit.clientY) : 0;
       const sampleSpacing = clamp(brushSize * 0.45, 10, 34);
-      const sampleCount = previousHit ? Math.min(12, Math.max(1, Math.ceil(screenDistance / sampleSpacing))) : 1;
+      const sampleCount = isStickerBrush || !previousHit ? 1 : Math.min(12, Math.max(1, Math.ceil(screenDistance / sampleSpacing)));
       const samples: PaintUvHit[] = [];
       let didPaint = false;
 
-      if (!previousHit) {
+      if (isStickerBrush || !previousHit) {
         samples.push(centerHit);
       } else {
         for (let sampleIndex = 1; sampleIndex <= sampleCount; sampleIndex += 1) {
@@ -3638,6 +3704,39 @@ export function ModelViewer({
         data[offset + 1] = Math.round((paintRgb.g * opacity + data[offset + 1] * destinationAlpha * (1 - opacity)) / outputAlpha);
         data[offset + 2] = Math.round((paintRgb.b * opacity + data[offset + 2] * destinationAlpha * (1 - opacity)) / outputAlpha);
         data[offset + 3] = Math.round(outputAlpha * 255);
+      }
+
+      function drawStickerStamp(sample: PaintUvHit) {
+        if (!stickerImage) {
+          return;
+        }
+
+        const centerAtlasPoint = getPaintAtlasPoint(sample.uv, paintTileCount, flipY);
+        const islandPath = getPaintIslandClipPath(sample, flipY);
+        if (!centerAtlasPoint || !islandPath) {
+          return;
+        }
+
+        const imageAspect = stickerImage.naturalWidth > 0 && stickerImage.naturalHeight > 0
+          ? stickerImage.naturalWidth / stickerImage.naturalHeight
+          : 1;
+        const stampBaseSize = Math.max(8, brushSize);
+        const stampWidth = imageAspect >= 1 ? stampBaseSize : stampBaseSize * imageAspect;
+        const stampHeight = imageAspect >= 1 ? stampBaseSize / imageAspect : stampBaseSize;
+
+        activeLayer.context.save();
+        activeLayer.context.clip(islandPath);
+        activeLayer.context.globalAlpha = alpha;
+        activeLayer.context.globalCompositeOperation = "source-over";
+        activeLayer.context.drawImage(
+          stickerImage,
+          centerAtlasPoint.x - stampWidth / 2,
+          centerAtlasPoint.y - stampHeight / 2,
+          stampWidth,
+          stampHeight,
+        );
+        activeLayer.context.restore();
+        didPaint = true;
       }
 
       function drawProjectedStamp(sample: PaintUvHit) {
@@ -3687,10 +3786,10 @@ export function ModelViewer({
             continue;
           }
 
-          const minX = Math.max(0, Math.floor(Math.min(atlasA.x, atlasB.x, atlasC.x) - 1));
-          const minY = Math.max(0, Math.floor(Math.min(atlasA.y, atlasB.y, atlasC.y) - 1));
-          const maxX = Math.min(activeLayer.canvas.width - 1, Math.ceil(Math.max(atlasA.x, atlasB.x, atlasC.x) + 1));
-          const maxY = Math.min(activeLayer.canvas.height - 1, Math.ceil(Math.max(atlasA.y, atlasB.y, atlasC.y) + 1));
+          const minX = Math.max(0, Math.floor(Math.min(atlasA.x, atlasB.x, atlasC.x) - PAINT_UV_BLEED_PX));
+          const minY = Math.max(0, Math.floor(Math.min(atlasA.y, atlasB.y, atlasC.y) - PAINT_UV_BLEED_PX));
+          const maxX = Math.min(activeLayer.canvas.width - 1, Math.ceil(Math.max(atlasA.x, atlasB.x, atlasC.x) + PAINT_UV_BLEED_PX));
+          const maxY = Math.min(activeLayer.canvas.height - 1, Math.ceil(Math.max(atlasA.y, atlasB.y, atlasC.y) + PAINT_UV_BLEED_PX));
           const width = maxX - minX + 1;
           const height = maxY - minY + 1;
           if (width <= 0 || height <= 0) {
@@ -3711,7 +3810,7 @@ export function ModelViewer({
                 continue;
               }
 
-              const barycentric = getBarycentric2D(canvasX, canvasY, atlasA.x, atlasA.y, atlasB.x, atlasB.y, atlasC.x, atlasC.y);
+              const barycentric = getBarycentric2D(canvasX, canvasY, atlasA.x, atlasA.y, atlasB.x, atlasB.y, atlasC.x, atlasC.y, -0.075);
               if (!barycentric) {
                 continue;
               }
@@ -3742,7 +3841,11 @@ export function ModelViewer({
       }
 
       for (const sample of samples) {
-        drawProjectedStamp(sample);
+        if (isStickerBrush) {
+          drawStickerStamp(sample);
+        } else {
+          drawProjectedStamp(sample);
+        }
         lastPaintHitRef.current = sample;
       }
 
@@ -3755,7 +3858,7 @@ export function ModelViewer({
         activeLayer.exportLayer.version += 1;
       }
     },
-    [activeBrush, blendMode, brushSize, brushStrength, flipY, paintTileCount, primaryColor],
+    [activeBrush, blendMode, brushSize, brushStrength, flipY, paintTileCount, primaryColor, stickerImage],
   );
 
   const snapshotPaintLayer = useCallback((layer: PaintLayer): PaintHistoryFrame => ({
@@ -3858,7 +3961,7 @@ export function ModelViewer({
 
   const handlePaintPointerMove = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
-      if (viewportMode !== "texture-paint" || !isPainting) {
+      if (viewportMode !== "texture-paint" || !isPainting || activeBrush === "Sticker") {
         return;
       }
 
@@ -3866,7 +3969,7 @@ export function ModelViewer({
       event.nativeEvent?.preventDefault();
       paintAtSurface(event, getPointerPressure(event));
     },
-    [isPainting, paintAtSurface, viewportMode],
+    [activeBrush, isPainting, paintAtSurface, viewportMode],
   );
 
   const stopPainting = useCallback(() => {
@@ -3965,6 +4068,20 @@ export function ModelViewer({
           return;
         }
 
+        if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === "a" && !event.repeat) {
+          event.preventDefault();
+          const now = performance.now();
+          if (now - lastSelectAllKeyRef.current < 430) {
+            clearEditSelection();
+            lastSelectAllKeyRef.current = 0;
+            return;
+          }
+
+          selectAllEditSelection();
+          lastSelectAllKeyRef.current = now;
+          return;
+        }
+
         const modeByKey: Record<string, EditSelectionMode> = {
           "1": "vertices",
           "2": "edges",
@@ -3983,7 +4100,7 @@ export function ModelViewer({
     return () => {
       window.removeEventListener("keydown", handleViewportModeKeys);
     };
-  }, [invertEditSelection, setEditSelectionMode, viewportMode]);
+  }, [clearEditSelection, invertEditSelection, selectAllEditSelection, setEditSelectionMode, viewportMode]);
 
   useEffect(() => {
     return () => {
@@ -3992,6 +4109,14 @@ export function ModelViewer({
       }
     };
   }, [modelUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (stickerUrl) {
+        URL.revokeObjectURL(stickerUrl);
+      }
+    };
+  }, [stickerUrl]);
 
   return (
     <section className="model-viewer">
@@ -4315,18 +4440,20 @@ export function ModelViewer({
         ) : null}
         {viewportMode === "texture-paint" && brushCursor.visible ? (
           <div
-            className="viewport-brush-cursor"
+            className={`viewport-brush-cursor${activeBrush === "Sticker" && stickerUrl ? " is-sticker" : ""}`}
             style={{
               left: brushCursor.x,
               top: brushCursor.y,
               width: clamp(brushSize, 8, 220),
               height: clamp(brushSize, 8, 220),
               borderColor: primaryColor,
+              backgroundImage: activeBrush === "Sticker" && stickerUrl ? `url("${stickerUrl}")` : undefined,
             }}
           />
         ) : null}
         {viewportMode === "texture-paint" ? (
           <>
+            <input ref={stickerInputRef} className="hidden-input" type="file" accept="image/*" onChange={handleStickerImageChange} />
             {isTexturePaintPanelOpen ? (
               <aside className="texture-paint-panel" onMouseDown={(event) => event.stopPropagation()}>
                 <header>
@@ -4336,11 +4463,17 @@ export function ModelViewer({
                     N
                   </button>
                 </header>
-                <section className="brush-asset-preview">
+                <section className={`brush-asset-preview${activeBrush === "Sticker" ? " is-sticker" : ""}`}>
                   <div className="brush-preview-orb">
-                    <span />
+                    {activeBrush === "Sticker" && stickerUrl ? <img src={stickerUrl} alt="" /> : <span />}
                   </div>
                   <strong>{activeBrush}</strong>
+                  {activeBrush === "Sticker" ? (
+                    <button className="paint-clear-button" type="button" onClick={() => stickerInputRef.current?.click()}>
+                      <ImagePlus aria-hidden="true" size={14} />
+                      Load sticker image
+                    </button>
+                  ) : null}
                 </section>
                 <section className="paint-tool-section">
                   <header>
