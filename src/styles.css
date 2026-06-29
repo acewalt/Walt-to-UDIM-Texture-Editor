@@ -3865,3 +3865,295 @@ h3 {
   font-weight: 850;
   transform: translateX(-50%);
 }
+
+@media (max-width: 760px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .blender-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .top-menu-bar {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    min-height: 0;
+    padding: 6px 8px 7px;
+  }
+
+  .app-brand-mini {
+    font-size: 0.72rem;
+  }
+
+  .top-menu-nav,
+  .workspace-mode-tabs {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+  }
+
+  .workspace-mode-tabs {
+    justify-self: stretch;
+  }
+
+  .workspace-mode-tabs button {
+    flex: 1 0 max-content;
+    min-height: 28px;
+    padding-inline: 9px;
+  }
+
+  .file-menu {
+    position: fixed;
+    top: 72px;
+    left: 8px;
+    right: 8px;
+    z-index: 80;
+    width: auto;
+    min-width: 0;
+  }
+
+  .help-menu {
+    min-width: 0;
+  }
+
+  .blender-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    height: auto;
+  }
+
+  .main-editor {
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    border-right: 0;
+  }
+
+  .uv-layout-workspace {
+    grid-template-rows: minmax(360px, 58vh) 6px minmax(300px, auto);
+    overflow: visible;
+  }
+
+  .editor-top-area {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .editor-top-area.is-edit-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .edit-uv-panel,
+  .edit-uv-panel-resize-handle {
+    display: none;
+  }
+
+  .main-editor .model-viewer {
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .main-editor .model-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    height: auto;
+    min-height: 0;
+    padding: 7px 8px;
+  }
+
+  .main-editor .model-header .section-title {
+    font-size: 0.92rem;
+  }
+
+  .viewport-toolbar {
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    overscroll-behavior-x: contain;
+  }
+
+  .main-editor .shader-mode-tabs {
+    flex: 0 0 auto;
+  }
+
+  .main-editor .shader-mode-tabs button {
+    min-height: 28px;
+    padding-inline: 8px;
+  }
+
+  .model-actions {
+    flex: 0 0 auto;
+  }
+
+  .canvas-shell,
+  .main-editor .canvas-shell {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+  }
+
+  .canvas-shell canvas {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .viewport-mode-select {
+    max-width: min(156px, calc(100vw - 28px));
+  }
+
+  .view-label,
+  .viewport-tool-palette {
+    max-width: calc(100vw - 28px);
+  }
+
+  .uv-preview-editor {
+    grid-template-rows: auto minmax(280px, 1fr);
+    min-height: 320px;
+  }
+
+  .uv-editor-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+    height: auto;
+    min-height: 0;
+    padding: 7px 8px;
+  }
+
+  .uv-editor-header > div:first-child {
+    min-width: 0;
+  }
+
+  .uv-channel-tabs {
+    justify-content: flex-start;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .uv-layout-tools {
+    position: relative;
+    flex-wrap: nowrap;
+    min-width: 0;
+    width: 100%;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px 8px;
+    overscroll-behavior-x: contain;
+  }
+
+  .uv-layout-tool-group,
+  .uv-target-udim,
+  .prepared-image-picker,
+  .uv-projection-picker {
+    flex: 0 0 auto;
+  }
+
+  .uv-projection-picker {
+    grid-template-columns: max-content minmax(140px, 58vw);
+  }
+
+  .uv-preview-canvas {
+    min-height: 280px;
+  }
+
+  .udim-tile-grid {
+    min-width: max-content;
+    padding: 8px;
+  }
+
+  .side-panels {
+    width: 100%;
+    min-width: 0;
+    grid-template-rows: auto auto;
+    border-top: 1px solid var(--border);
+  }
+
+  .outliner-panel {
+    min-height: 180px;
+    max-height: 260px;
+  }
+
+  .properties-panel {
+    min-height: 360px;
+  }
+
+  .outliner-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .outliner-stats div {
+    min-width: 0;
+  }
+
+  .projection-ripper-workspace {
+    min-height: calc(100dvh - 98px);
+  }
+
+  .projection-ripper-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    height: auto;
+    min-height: 0;
+    padding: 7px 8px;
+  }
+
+  .projection-ripper-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(260px, 42vh) minmax(320px, auto) auto;
+    overflow: visible;
+  }
+
+  .projection-settings-panel {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 430px) {
+  .main-editor .shader-mode-tabs button span {
+    display: none;
+  }
+
+  .main-editor .shader-mode-tabs button {
+    width: 34px;
+    padding-inline: 0;
+  }
+
+  .main-editor .model-actions .secondary-button.icon-only {
+    width: 32px;
+  }
+
+  .uv-layout-workspace {
+    grid-template-rows: minmax(330px, 54vh) 6px minmax(280px, auto);
+  }
+
+  .uv-layout-tools button {
+    min-height: 28px;
+    padding-inline: 7px;
+  }
+
+  .prepared-image-picker span,
+  .uv-target-udim span,
+  .uv-projection-picker span {
+    font-size: 0.66rem;
+  }
+
+  .outliner-stats span {
+    font-size: 0.62rem;
+  }
+}
