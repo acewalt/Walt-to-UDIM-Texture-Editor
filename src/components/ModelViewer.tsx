@@ -1516,7 +1516,38 @@ function ensureEditableUvGeometry(mesh: THREE.Mesh) {
   return mesh.geometry;
 }
 
-function prepareModelCloneForExport(object: THREE.Object3D) {
+function getModelExportUnitScale(object: THREE.Object3D, fileType: ModelFileType) {
+  if (fileType !== "fbx") {
+    return 1;
+  }
+
+  let unitScaleFactor: number | null = null;
+  object.traverse((child) => {
+    if (unitScaleFactor !== null) {
+      return;
+    }
+
+    const value = child.userData?.unitScaleFactor;
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      unitScaleFactor = value;
+    }
+  });
+
+  if (unitScaleFactor === null) {
+    return 0.01;
+  }
+
+  // FBX stores UnitScaleFactor as centimeters per scene unit. OBJ has no unit metadata,
+  // so bake the FBX unit conversion into the exported vertices.
+  const scaleToMeters = unitScaleFactor / 100;
+  return Number.isFinite(scaleToMeters) && scaleToMeters > 0 ? scaleToMeters : 1;
+}
+
+function prepareModelCloneForExport(object: THREE.Object3D, exportUnitScale = 1) {
+  if (exportUnitScale !== 1) {
+    object.scale.multiplyScalar(exportUnitScale);
+  }
+
   object.updateMatrixWorld(true);
   const removableObjects: THREE.Object3D[] = [];
 
@@ -3227,7 +3258,8 @@ export function ModelViewer({
 
     const exporter = new OBJExporter();
     currentModelObjectRef.current.updateMatrixWorld(true);
-    const exportObject = prepareModelCloneForExport(currentModelObjectRef.current.clone(true));
+    const exportUnitScale = modelUrl ? getModelExportUnitScale(currentModelObjectRef.current, modelFileType) : 1;
+    const exportObject = prepareModelCloneForExport(currentModelObjectRef.current.clone(true), exportUnitScale);
     const output = exporter.parse(exportObject);
     const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -3238,7 +3270,7 @@ export function ModelViewer({
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }, [modelExportRequest, modelName]);
+  }, [modelExportRequest, modelFileType, modelName, modelUrl]);
 
   useEffect(() => {
     if (!uvEditCommand) {
